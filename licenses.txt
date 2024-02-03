@@ -1,0 +1,10 @@
+https://github.com/ajaxorg/ace                       3-Clause BSD License
+https://github.com/mturco/context-menu              MIT
+https://github.com/danburzo/selery                          MIT
+https://github.com/fomantic/Fomantic-UI                 MIT
+https://github.com/d3/d3                                        ISC license
+https://observablehq.com/@d3/collapsible-tree      ISC license
+https://github.com/jquery/jquery                             MIT
+https://github.com/RickStrahl/jquery-resizable         MIT
+https://github.com/antlr/grammars-v4
+https://github.com/antlr/antlr4                                 3-Clause BSD License
