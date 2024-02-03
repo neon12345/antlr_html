@@ -1,0 +1,106 @@
+<html>
+    <head>
+        <meta http-equiv="Content-Security-Policy" content="connect-src https://nop">
+        <meta http-equiv="expires" content="2147483648">
+        <meta http-equiv="pragma" content="only-if-cached">
+    </head>
+    <script>
+        var result = '';
+        var has_error = false; 
+        var obs = [];
+        var events = [];
+        var num = 0;
+        window.print = function(str) { result += str; }
+        window.println = function(str) { result += str + '\n'; }
+        
+        function getTreeData() {
+            var max_depth = 0;
+            var res = {name:'root', children:[], value:0};
+            var stack = [res];
+            function addChild(n, v, l, c, np) {
+                let child = {name:n, children:[], value:v, line:l, col:c};
+                let slen = stack.length;
+                stack[slen - 1].children.push(child);
+                if(max_depth < slen + 1)
+                    max_depth = slen + 1;
+                if(!np)
+                    stack.push(child);
+            }
+            current.visit({
+                onComment(val, idx) { },
+                onNode(node, pos) {
+                    if(pos == 0) {
+                        addChild(node.constructor.name, 1, node.line, node.col);
+                    } else {
+                        stack.pop();
+                    }
+                },
+                onLiteral(val) {
+                    addChild(val, 2, -1, -1, true);
+                },
+                onVal(val) {
+                    addChild(val, 3, -1, -1, true);
+                }
+            });
+            return {data: res.children[0], depth:max_depth};
+        }
+
+        function onError(err) {
+            if(!has_error) {
+                has_error = true;
+                let idx = obs.indexOf(err.filename);
+                events[idx].source.postMessage(JSON.stringify({e:{m:err.message, l:err.lineno, n:idx}}), events[idx].origin);
+            }
+            return false;
+        }
+        
+        function ret() {
+            if(!has_error) {
+                var tree = null;
+                if(need_tree) {
+                    tree = getTreeData();
+                }
+                events[3].source.postMessage(JSON.stringify({r:result, t:tree}), events[3].origin);
+            }
+        }
+        
+        window.addEventListener('error', onError);
+        
+        var resolver;
+        var promise = new Promise(function(resolve, reject) { resolver = resolve; });
+        
+        window.addEventListener('message', function(e) {
+            if(has_error)
+                return;
+            if(e.origin !== (window.location.protocol + "//" + window.location.host))
+                return;
+                
+            (function() {
+                var el = document.createElement( 'script' );
+                var ev_data = e.data;
+                promise.then(function() {
+                    const blob = new Blob([ev_data], {
+                        type: "application/javascript",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    obs.push(url.toString());
+                    events.push(e);
+                    el.src = url;
+                    document.head.appendChild(el);
+                });
+                promise = new Promise(function(resolve, reject) {
+                    el.onload = resolve;
+                });
+            })();
+            
+            if(num == 3) {
+                promise.then(ret);
+            }
+            num += 1;
+        });
+        
+        resolver();
+    </script>
+    <body>
+    </body>
+</html>

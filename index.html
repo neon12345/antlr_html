@@ -1,0 +1,1004 @@
+<html>
+	<head>
+		<meta http-equiv="expires" content="2147483648">
+		<meta http-equiv="pragma" content="only-if-cached">
+		<link rel="stylesheet" href="fomantic-2.9.3.min.css">
+		<script type="text/javascript" src="jquery-3.7.1.min.js"></script>
+		<script type="text/javascript" src="jquery-resizable.js"></script>
+		<script type="text/javascript" src="fomantic-2.9.3.min.js"></script>
+		<script type="text/javascript" src="ace-1.32.3.js"></script>
+		<script type="text/javascript" src="d3js-7.8.5.min.js"></script>
+		<script type="text/javascript" src="context-menu.js"></script>
+		<style>
+			html, body {
+				margin:0;
+				padding:0
+				width:100%;
+				height:100%;
+				overflow:hidden;
+			}
+
+			body{
+				padding:10px;
+			}
+
+			.editor {
+				width:100%;
+				height:100%;
+			}
+
+			.panel-container {
+				display: flex;
+				flex-direction: row;
+				overflow: hidden;
+				xtouch-action: none;
+				height:100%;
+				min-height:200px;
+			}
+
+			.panel-left {
+				flex: 0 0 auto;
+				width: 50%;
+				min-height: 200px;
+				min-width: 200px;
+				max-width: calc(100% - 300px);
+				white-space: nowrap;
+				border: 1px solid silver;
+			}
+
+			.panel-right {
+				flex: 1 1 auto;
+				width: 100%;
+				min-height: 200px;
+				min-width: 10%;
+				border: 1px solid silver;
+			}
+
+			.panel-top {
+				flex: 0 0 auto;
+				height: 100%;
+				width: 100%;
+				white-space: nowrap;
+				min-height:230px;
+				max-height: calc(100% - 158px);
+			}
+
+			.panel-bottom {
+				flex: 1 1 auto;
+				min-height: 140px;
+				border: 1px solid silver;
+				height:100%;
+			}
+
+			.splitter {
+				flex: 0 0 auto;
+				width: 8px;
+				min-height: 200px;
+				cursor: col-resize;  
+			}
+
+			.splitter-horizontal {
+				flex: 0 0 auto;
+				height: 8px;
+				cursor: row-resize;
+			}
+
+			.panel-container-vertical {
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+				height:calc(100% - 3.3em);
+			}
+
+			div > .editbar,
+			div > .treebar {
+				height:2em;
+				padding: 0;
+				margin: 0 !important;
+				margin-bottom:0.3em !important;
+				margin-left:-1.2em !important;
+			}
+			
+			.main .tlang {
+				margin-top: 8em;
+				margin-right: 6em;
+				z-index: 999;
+			}
+			
+			.maintab {
+				height:100%;
+				width:100%;
+				padding:0 !important;
+				margin:0 !important;
+			}
+			
+			.segment {
+				border:0 !important;
+			}
+			
+			.maintab > .segment {
+				height:calc(100% - 3.5em);
+				width:100%;
+				padding:0 !important;
+				margin:0 !important;
+				border-bottom:1px solid #ccc !important;
+			}
+			
+			.bottom.menu {
+				border-left:1px solid #eee !important;
+				border-right:1px solid #eee !important;
+			}
+			
+			#tree_container {
+				width:100%;
+				height:calc(100% - 3.2em);
+				overflow:auto;
+			}
+			
+			#tree_container svg {
+				height:auto;
+				min-height: 100%;
+				min-width: 100%;
+				font: 10px sans-serif; 
+				user-select: none;
+			}
+			
+			.ContextMenu li.disabled {
+				color:#ccc;
+				pointer-events:none;
+			}
+			
+			text.red {
+				fill:red;
+			}
+			
+			text.lime {
+				fill:lime;
+			}
+			
+			.tfilter {
+				font-size:1.1em !important;
+			}
+			
+			#minimap {
+				position:absolute;
+				bottom:-3em;
+				right:1em;
+				height:130px;
+				width:200px;
+				border:1px solid #ccc;
+				background: #eee;
+			}
+			
+			#minimap > div:first-child {
+				position:absolute;
+				border: 1px solid red;
+				z-index:999;
+				cursor:grab;
+			}
+			
+			#minimap > .cover {
+				position: absolute;
+				width:100%;
+				height:100%;
+				z-index: 998;
+			}
+			
+			.drag {
+				cursor:move !important;
+			}
+			
+			.helptab {
+				with:100%;
+				height:100%;
+				overflow:auto;
+			}
+		</style>
+		<script>
+			function Init() {
+			
+				window.treeOpenAll = () => {};
+				window.treeOpen = () => {};
+			
+				$('.panel-left').resizable({
+					handleSelector: '.splitter',
+					resizeHeight: false
+				});
+
+				$('.panel-top').resizable({
+					handleSelector: '.splitter-horizontal',
+					resizeWidth: false
+				});
+				
+				$('.tabular.menu > .item').tab();
+				
+				let langs = [ 'swift', 'python', 'c_cpp', 'Javascript' ];
+				let iframe = $('#frm');
+				let lang_label = $('.tlang.label');
+				let filter_label = $('.tfilter.label');
+				let result_editor = ace.edit('editor_right');
+				let qry_editor = ace.edit('editor_bottom');
+				let code_editor = ace.edit('editor_left');
+				let lang_sel = $('.ui.dropdown');
+				let run_btn = $('.run.ui.button');
+				let filter_btn = $('.filter.ui.button');
+				let all_btn = $('.all.ui.button');
+				let tree_container = $('#tree_container');
+				let minimap = $('#minimap');
+				let minimap_child = $('#minimap > div:first-child');
+
+				let code_session = code_editor.getSession();
+				let code_um = code_session.getUndoManager();
+				
+				let qry_session = qry_editor.getSession();
+				let result_session = result_editor.getSession();
+				
+				var code_changed = false;
+				var ast_data = '';
+				var tree_data = null;
+				var _cssqry = null;
+				var _jquery = null;
+				var edit_position = {from:{}, to:{}};
+				
+				lang_label.hide();
+				
+				code_editor.setTheme('ace/theme/tomorrow');
+				code_session.setMode('ace/mode/swift');
+
+				result_editor.setTheme('ace/theme/tomorrow');
+				result_session.setMode('ace/mode/text');
+				result_editor.setReadOnly(true);
+
+				qry_editor.setTheme('ace/theme/tomorrow');
+				qry_session.setMode('ace/mode/javascript');
+
+				lang_sel.dropdown({   
+					onChange: function(value, text, $selectedItem) {
+						code_changed = true;
+					}
+				});
+				
+				function updateEditPos() {
+					const line_start = edit_position.from.l;
+					const line_end = edit_position.to.l;
+					const col_start = edit_position.from.c;
+					const col_end = edit_position.to.c;
+					const range = edit_position.range;
+					if(!range) {
+						filter_label.text('line: ' + line_start + ', column: ' + col_end);
+					} else {
+						filter_label.text('from (line: ' + line_start + ', column: ' + col_start + ') to (line: ' + line_end + ', column: ' + col_end + ')');
+					}
+				}
+				
+				code_editor.on("changeSelection", function(e){
+					const ep = code_editor.getSelection();
+					var line_start = ep.anchor.row + 1;
+					var line_end = ep.cursor.row + 1;
+					var col_start = ep.anchor.column;
+					var col_end = ep.cursor.column;
+					const empty = ep.isEmpty(); 
+					if(!empty && line_start > line_end) {
+						[line_start, line_end] =  [line_end, line_start];
+						[col_start, col_end] =  [col_end, col_start];
+					}
+					edit_position = {from:{l:line_start, c:col_start}, to:{l:line_end, c:col_end}, range:!empty};
+					updateEditPos();
+				});
+				
+				code_um.reset() ;
+				
+				function send(onOk) {
+					function after(res, err) {
+						onOk(res, err);
+					}
+					fetch('/cgi-bin/cat.py?' + new URLSearchParams({
+						cmd: 1,
+						lang: lang_sel.dropdown('get value'),
+					}),
+					{
+						headers: {
+							'Accept': 'html/text',
+							'Content-Type': 'html/text'
+						},
+						method: 'POST',
+						body: code_editor.getValue()
+					})
+					.then(function(res){ after(res, false) })
+					.catch(function(res){ after(res, true) });
+				}
+				
+				function onRun() {
+					if(run_btn.hasClass('disabled')) return;
+					qry_session.setAnnotations([]);
+					result_editor.setValue('');
+					run_btn.addClass('disabled');
+					lang_sel.addClass('disabled');
+					lang_label.hide();
+					code_editor.setReadOnly(true);
+					qry_editor.setReadOnly(true);
+					function after() {
+						code_editor.setReadOnly(false);
+						qry_editor.setReadOnly(false);
+						lang_sel.removeClass('disabled');
+						run_btn.removeClass('disabled');
+					}
+					function run() {
+						let qry = qry_editor.getValue();
+						iframe[0].src += '';
+						iframe.one('load', function () {
+							iframe[0].contentWindow.postMessage(_jquery, '*');
+							iframe[0].contentWindow.postMessage(_cssqry, '*');
+							iframe[0].contentWindow.postMessage(ast_data + '\nwindow.need_tree = ' + (tree_data == null ? 'true;' : 'false;'), '*');
+							iframe[0].contentWindow.postMessage(qry, '*');
+							$(window).one('message', function(e) {
+								let r = JSON.parse(e.originalEvent.data);
+								if(r.r !== undefined) {
+									result_editor.setValue(r.r);
+									const found = /\/\* lang: (.*) \*\//g.exec(qry);
+									var lang = 'text';
+									if(found && found[1] && langs.indexOf(found[1]) != -1) {
+										lang = found[1];
+										lang_label.text('Target Lang: ' +  found[1]);
+										lang_label.show();
+									}
+									result_session.setMode('ace/mode/' + lang);
+									if(r.t) {
+										tree_data = r.t;
+										renderTree();
+									}
+								} else {
+									if(r.e) {
+										qry_session.setAnnotations([{
+										row: r.e.n == 3 ? r.e.l - 1 : 0,
+										column: 0,
+										text: (r.e.n == 3 ? '' : 'internal: ') + r.e.m,
+										type: "error"
+										}]);
+									}
+								}
+								after();
+							});
+						}); 
+					}
+					if(code_changed) {
+						ast_data = '';
+						tree_data = null;
+						code_changed = false;
+						code_um.markClean();
+						send(function(res, err) {
+							if(!err) {
+								res.text().then(function(r) {
+									if(!res.headers.has('Error')) {
+										ast_data = r;
+										ast_data += '\n';
+										ast_data += '_InitNode();';
+										run();
+									} else {
+										alert('error:' + r);
+										after();
+									}
+								});
+							} else {
+								alert('error');
+								after();
+							}
+						});
+					} else {
+						run();
+					}
+				}
+				
+				code_editor.on('input', function() {
+					code_changed = !code_um.isClean();
+				});
+				
+				run_btn.click(onRun);
+				filter_btn.click(onFilter);
+				all_btn.click(onAll);
+				
+				$(document).keydown(function(e) {
+					if (e.keyCode == 83 && e.ctrlKey) {
+						onRun();
+						return false;
+					}
+				});
+				
+				run_btn.addClass('disabled');
+				function rdy() {
+					if(_cssqry && _jquery)
+						run_btn.removeClass('disabled');
+				}
+				
+				fetch('cssqry.js').then(e => {
+					e.text().then(txt => {
+						_cssqry = txt;
+					}).then(rdy);
+				}).catch(e => {
+					alert(e);
+				});
+				
+				fetch('jquery-3.7.1.min.js').then(e => {
+					e.text().then(txt => {
+						_jquery = txt;
+					}).then(rdy);
+				}).catch(e => {
+					alert(e);
+				});
+				
+				var params = new URLSearchParams(location.search);
+				if(params.get('demo') == "1") {
+					fetch('demo.swift').then(e => {
+						e.text().then(txt => {
+							code_editor.setValue(txt);
+							code_editor.clearSelection();
+						}).then(rdy);
+					}).catch(e => {
+						alert(e);
+					});
+					fetch('demo.js').then(e => {
+						e.text().then(txt => {
+							qry_editor.setValue(txt);
+							qry_editor.clearSelection();
+						}).then(rdy);
+					}).catch(e => {
+						alert(e);
+					});
+				}
+				
+				function updateMinimapImg() {
+					if(!tree_container.children().length)
+						return;
+					let out = new Image();
+					let canvas = document.createElement('canvas');
+					let ctx = canvas.getContext('2d');
+					let img = document.createElement('img')
+					const xml = (new XMLSerializer).serializeToString(tree_container[0].firstChild);
+					out.src = 'data:image/svg+xml,' + encodeURIComponent(xml);
+					canvas.width = minimap.outerWidth();
+					canvas.height= minimap.outerHeight();
+					out.onload = function(){
+						ctx.drawImage(out, 0, 0, out.width, out.height, 0, 0, canvas.width, canvas.height);
+						img.src = canvas.toDataURL('image/png');
+						$(img).css({
+							width:'100%',
+							height:'100%',
+							'object-fit':'fill',
+							'user-select':'none',
+							'z-index':-1
+						});
+						$(img).attr('draggable', 'false');
+						minimap.find('img').remove();
+						minimap.append(img);
+					};
+				}
+				
+				function updateMinimap() {
+					let sw = tree_container.innerWidth() / tree_container[0].scrollWidth;
+					let sh =  tree_container.innerHeight() / tree_container[0].scrollHeight;
+					
+					let ws = minimap.innerWidth() * sw;
+					let hs = minimap.innerHeight() * sh;
+					
+					let l = tree_container[0].scrollLeft / tree_container[0].scrollWidth;
+					let t =  tree_container[0].scrollTop / tree_container[0].scrollHeight;
+					
+					let sl = minimap.innerWidth() * l;
+					let st = minimap.innerHeight() * t;
+					
+					minimap_child.css({
+						top:st + 'px',
+						left:sl + 'px',
+						width:ws + 'px',
+						height:hs + 'px'
+					});
+				}
+				
+				var dragged = false;
+				minimap.on('mouseup', function(e){
+					if(dragged) 
+					{
+						dragged = false;
+						return;
+					}
+					let o = minimap.offset();
+					let absX = o.left;
+					let absY = o.top;
+					let absXW = absX + minimap.outerWidth();
+					let absYH = absY + minimap.outerHeight();
+					let height = minimap_child.outerHeight();
+					let width = minimap_child.outerWidth();
+					let dr = $(this);
+					var itop = e.pageY - height / 2;
+					var ileft = e.pageX - width / 2;
+					if(itop < absY) itop = absY;
+						else
+					if(itop > absYH - height) itop = absYH - height;
+					if(ileft < absX) ileft = absX;
+						else
+					if(ileft > absXW - width) ileft = absXW - width;
+					let sl = (ileft - absX) / minimap.outerWidth();
+					let st = (itop - absY) / minimap.outerHeight();
+					tree_container.scrollLeft(tree_container[0].scrollWidth * sl);
+					tree_container.scrollTop(tree_container[0].scrollHeight * st);
+				});
+				
+				minimap_child.on('mousedown', function(e){
+					dragged = false;
+					let o = minimap.offset();
+					let absX = o.left;
+					let absY = o.top;
+					let absXW = absX + minimap.outerWidth();
+					let absYH = absY + minimap.outerHeight();
+					let dr = $(this).addClass("drag");
+					let height = dr.outerHeight();
+					let width = dr.outerWidth();
+					let ypos = dr.offset().top + height - e.pageY;
+					let xpos = dr.offset().left + width - e.pageX;
+					function end(e){
+						dragged = false;
+						dr.removeClass("drag");
+						$(document.body).off('mousemove', move);
+					}
+					function move(e) {
+						if((e.buttons & 1) == 0) {
+							end(e);
+							return false;
+						}
+						dragged = true;
+						var itop = e.pageY + ypos - height;
+						var ileft = e.pageX + xpos - width;
+						if(itop < absY) itop = absY;
+							else
+						if(itop > absYH - height) itop = absYH - height;
+						if(ileft < absX) ileft = absX;
+							else
+						if(ileft > absXW - width) ileft = absXW - width;
+						let sl = (ileft - absX) / minimap.outerWidth();
+						let st = (itop - absY) / minimap.outerHeight();
+						tree_container.scrollLeft(tree_container[0].scrollWidth * sl);
+						tree_container.scrollTop(tree_container[0].scrollHeight * st);
+					}
+					$(document.body).on('mousemove', move).one('mouseup', end);
+				});
+				
+				tree_container.on("scroll", updateMinimap);
+			
+				function getTree(data) {
+					/* 
+						https://observablehq.com/@d3/collapsible-tree
+						ISC license
+						*/
+				
+					// Specify the charts’ dimensions. The height is variable, depending on the layout.
+					const item_width = 200;
+					const num_visible = 6;
+					const width = data.depth * item_width;
+					const marginTop = 10;
+					const marginRight = 10;
+					const marginBottom = 10;
+					const marginLeft = item_width;
+					
+					let scrollX;
+					let scrollY;
+					let scrollLeft;
+					let scrollTop;
+					let inScroll;
+					
+					var zoomX;
+					var zoomY;
+					var zoomW;
+					var zoomH;
+
+					// Rows are separated by dx pixels, columns by dy pixels. These names can be counter-intuitive
+					// (dx is a height, and dy a width). This because the tree must be viewed with the root at the
+					// “bottom”, in the data domain. The width of a column is based on the tree’s height.
+					const root = d3.hierarchy(data.data);
+					const dx = 10;
+					const dy = (width - marginRight - marginLeft) / (1 + root.height);
+
+					// Define the tree layout and the shape for links.
+					const tree = d3.tree().nodeSize([dx, dy]);
+					const diagonal = d3.linkHorizontal().x(d => d.y).y(d => d.x);
+					const min_width = Math.trunc((width/(num_visible*item_width)) * 100);
+					const max_scale = Math.ceil(min_width / 100);
+					var inZoom = false;
+					
+					// Create the SVG container, a layer for the links and a layer for the nodes.
+					const svg = d3.create("svg")
+						.attr("style", "width:100%")
+						.call(d3.drag()
+						.on("start", e => {
+							inScroll = true;
+							e = e.sourceEvent;
+							scrollX = e.pageX;
+							scrollY = e.pageY;
+							scrollLeft = tree_container[0].scrollLeft;
+							scrollTop = tree_container[0].scrollTop;
+						})
+						.on("drag", (e) => {
+							if (inScroll) {
+								e = e.sourceEvent;
+								e.preventDefault();
+								const walkX = e.pageX - scrollX;
+								const walkY = e.pageY - scrollY;
+								tree_container[0].scrollLeft = scrollLeft - walkX;
+								tree_container[0].scrollTop = scrollTop - walkY;
+							}
+						}).on("end", (e) => {
+							inScroll = false;
+						}))
+						.on('wheel mousewheel', e => {
+							e.preventDefault();
+							e.stopPropagation();
+							return false;
+						})
+						.on("mousemove", function(event) {
+							inZoom = false;
+						})
+						.call(d3.zoom()
+						.scaleExtent([1, max_scale])
+						.on("zoom", function(event) {
+							if(inScroll) return;
+							let e = event.sourceEvent;
+							let sn = $(svg.node());
+							if(!inZoom) {
+								let iw2 = tree_container.innerWidth() / 2;
+								let ih2 = tree_container.innerHeight() / 2;
+								zoomX = e.offsetX - iw2;
+								zoomY = e.offsetY - ih2;
+								zoomW = tree_container[0].scrollWidth;
+								zoomH =  tree_container[0].scrollHeight;
+								tree_container.scrollLeft(zoomX);
+								tree_container.scrollTop(zoomY);
+								zoomX = zoomX + iw2;
+								zoomY = zoomY + ih2;
+								inZoom = true;
+							}
+							svg.attr("style", "width: " + Math.trunc(event.transform.k * 100)  + "%;");
+							let iw2 = tree_container.innerWidth() / 2;
+							let ih2 = tree_container.innerHeight() / 2;
+							let nsw = tree_container[0].scrollWidth;
+							let nsh = tree_container[0].scrollHeight;
+							let nw = nsw / zoomW;
+							let nh = nsh / zoomH;
+							tree_container.scrollLeft(nw * zoomX - iw2);
+							tree_container.scrollTop(nh * zoomY - ih2);
+						}));
+						
+					const gLink = svg.append("g")
+						.attr("fill", "none")
+						.attr("stroke", "#555")
+						.attr("stroke-opacity", 0.4)
+						.attr("stroke-width", 1.5);
+
+					const gNode = svg.append("g")
+						.attr("cursor", "pointer")
+						.attr("pointer-events", "all");
+
+					function update(event, source) {
+						const duration = event?.altKey ? 2500 : 250; // hold the alt key to slow down the transition
+						const nodes = root.descendants().reverse();
+						const links = root.links();
+
+						// Compute the new tree layout.
+						tree(root);
+
+						let left = root;
+						let right = root;
+						root.eachBefore(node => {
+						if (node.x < left.x) left = node;
+						if (node.x > right.x) right = node;
+						});
+
+						const height = right.x - left.x + marginTop + marginBottom;
+
+						const transition = svg.transition()
+							.duration(duration)
+							.attr("height", height)
+							.attr("viewBox", [-marginLeft, left.x - marginTop, width, height])
+							.tween("resize", window.ResizeObserver ? null : () => () => svg.dispatch("toggle"));
+
+						// Update the nodes…
+						const node = gNode.selectAll("g")
+						.data(nodes, d => d.id);
+
+						// Enter any new nodes at the parent's previous position.
+						const nodeEnter = node.enter().append("g")
+							.attr("transform", d => `translate(${source.y0},${source.x0})`)
+							.attr("fill-opacity", 0)
+							.attr("stroke-opacity", 0)
+							.on("click", (event, d) => {
+							d.children = d.children ? null : d._children;
+							update(event, d);
+							});
+
+						nodeEnter.append("circle")
+							.attr("r", 2.5)
+							.attr("fill", d => d._children ? "#555" : "#999")
+							.attr("stroke-width", 10);
+
+						nodeEnter.append("text")
+							.attr("dy", "0.31em")
+							.attr("x", d => d._children ? -6 : 6)
+							.attr("text-anchor", d => d._children ? "end" : "start")
+							.text(d => d.data.name)
+							.attr("class", d => d.data.value <= 1 ? "black" : "red")
+						.clone(true).lower()
+							.attr("stroke-linejoin", "round")
+							.attr("stroke-width", 3)
+							.attr("stroke", "white");
+
+						// Transition nodes to their new position.
+						const nodeUpdate = node.merge(nodeEnter).transition(transition)
+							.attr("transform", d => `translate(${d.y},${d.x})`)
+							.attr("fill-opacity", 1)
+							.attr("stroke-opacity", 1);
+
+						// Transition exiting nodes to the parent's new position.
+						const nodeExit = node.exit().transition(transition).remove()
+							.attr("transform", d => `translate(${source.y},${source.x})`)
+							.attr("fill-opacity", 0)
+							.attr("stroke-opacity", 0);
+
+						// Update the links…
+						const link = gLink.selectAll("path")
+						.data(links, d => d.target.id);
+
+						// Enter any new links at the parent's previous position.
+						const linkEnter = link.enter().append("path")
+							.attr("d", d => {
+							const o = {x: source.x0, y: source.y0};
+							return diagonal({source: o, target: o});
+							});
+
+						// Transition links to their new position.
+						link.merge(linkEnter).transition(transition)
+							.attr("d", diagonal);
+
+						// Transition exiting nodes to the parent's new position.
+						link.exit().transition(transition).remove()
+							.attr("d", d => {
+							const o = {x: source.x, y: source.y};
+							return diagonal({source: o, target: o});
+							});
+
+						// Stash the old positions for transition.
+						root.eachBefore(d => {
+						d.x0 = d.x;
+						d.y0 = d.y;
+						});
+					}
+
+					// Do the first update to the initial configuration of the tree — where a number of nodes
+					// are open (arbitrarily selected as the root, plus nodes with 7 letters).
+					root.x0 = dy / 2;
+					root.y0 = 0;
+					root.descendants().forEach((d, i) => {
+						d.id = i;
+						d._children = d.children;
+						d.children = null;
+					});
+
+					update(null, root);
+					
+					function reset(d) {
+						d.children = d._children;
+						if(d.children) d.children.forEach(reset);
+					}
+					
+					window.treeOpenAll = function() {
+						reset(root);
+						update(null, root);
+					}
+					
+					window.treeOpen = function() {
+						const line_start = edit_position.from.l;
+						const line_end = edit_position.to.l;
+						const col_start = edit_position.from.c;
+						const col_end = edit_position.to.c;
+						const range = edit_position.range;
+						reset(root);
+						function mark(d) {
+							var hasChildren = false;
+							if(d.children) d.children.forEach(function(v) { hasChildren |= mark(v); });
+							if(!hasChildren && d.data.line != -1) {
+								if(!range) {
+									if(d.data.line != line_start) d.children = null;
+								} else {
+									if(d.data.line < line_start || d.data.line > line_end) d.children = null;
+								}
+							}
+							return d.children != null;
+						}
+						
+						mark(root);
+
+						update(null, root);
+					}
+					
+					new ResizeObserver(updateMinimap).observe(svg.node());
+
+					return svg.node();
+				}
+				
+				function renderTree() {
+					tree_container.empty();
+					tree_container[0].appendChild(getTree(tree_data));
+				}
+				
+				function onFilter(e, all) {
+					if(all) {
+						treeOpenAll();
+					} else {
+						treeOpen();
+					}
+					
+					setTimeout(function() {
+						updateMinimapImg();
+					}, 1000);
+				}
+				
+				function onAll(e) {
+					onFilter(e, true);
+				}
+				
+				let tree_menu = new ContextMenu('#tree_container', [
+					{
+						name: 'Copy',
+						fn: (target) => {
+							let el = $('<textarea>');
+							$('body').append(el);
+							el.val(target.textContent).select();
+							document.execCommand('copy');
+							el.remove();
+						},
+					},
+					{
+						name: 'Mark/Unmark',
+						fn: (target) => {
+							$(target).toggleClass('lime');
+						},
+					}
+				]);
+
+				tree_menu.on('shown', (e) => {
+					if(e.context.tagName == 'text') {
+						$(e.target).find('li').removeClass('disabled');
+					} else {
+						$(e.target).find('li').addClass('disabled');
+					}
+				});
+			}
+		</script>
+	</head>
+	<body class="main" onLoad="Init();">
+		<div class="maintab ui segment">
+			<div class="ui top attached tab segment active" data-tab="edit">
+				<iframe sandbox="allow-scripts" id="frm" src='iframe.html' style="display: none;"></iframe>
+				<div class="ui secondary menu editbar">
+					<a class="item">
+						<div class="ui selection dropdown">
+							<input type="hidden" name="lang" value="0">
+							<i class="dropdown icon"></i>
+							<div class="default text">Language</div>
+							<div class="menu">
+								<div class="item" data-value="0">Swift</div>
+								<div class="item" data-value="1">Python</div>
+								<div class="item" data-value="2">C/C++</div>
+								<div class="item" data-value="3">JavaScript</div>
+							</div>
+						</div>
+					</a>
+					<div class="right menu">
+						<a class="tlang ui blue floating tag label"></a>
+						<a class="ui right labeled icon button run">
+							<i class="cog icon"></i>
+							Run
+						</a>
+					</div>
+				</div>
+				<div class="panel-container-vertical">
+					<div class="panel-top">
+						<div class="panel-container">
+							<div class="panel-left"><div class="editor" id="editor_left"></div></div>
+							<div class="splitter"></div>
+							<div class="panel-right"><div class="editor" id="editor_right"></div></div>
+						</div>
+					</div>
+					<div class="splitter-horizontal"></div>
+					<div class="panel-bottom"><div class="editor" id="editor_bottom"></div></div>
+				</div>
+			</div>
+			<div class="ui top attached tab segment" data-tab="tree">
+				<div class="ui secondary menu treebar">
+					<div class="right menu">
+						<a class="ui right labeled icon button all">
+							<i class="folder open icon"></i>
+							Show All
+						</a>
+						<a class="tfilter ui blue right pointing label"></a>
+						<a class="ui right labeled icon button filter">
+							<i class="filter icon"></i>
+							Select
+						</a>
+					</div>
+				</div>
+				<div id="tree_container"></div>
+				<div id="minimap"><div></div><div class="cover"></div></div>
+			</div>
+			<div class="ui top attached tab segment" data-tab="help">
+				<div class="helptab">
+					<h3>UI Layout</h3>
+					<p>There are three tabs controlled with a switch at the bottom:
+						<ol>
+							<li>Edit</li>
+							<li>Tree</li>
+							<li>Help</li>
+						</ol>
+					</p>
+					<h3>Edit</h3>
+						The toolbar at the top has a dropdown to select the input language and a button to execute the translation script.
+						The split view has three editors with the input source file at the top left, the result at the top right and the translation script at the bottom.
+						Strg+S is equal to a button press.
+						Drag the joint border to resize the editors.
+						To select the result language, add a comment to the translation script: /* lang: python */
+						Select lines in the input source file to filter the AST.
+					<p>
+					</p>
+					<h3>Tree</h3>
+					<p>
+						The toolbar at the top has filter buttons to either show all nodes or only selected nodes from the editor. The selected lines are shown in the label next to the Select button. The translation script must run once to render the tree. The center contains the AST rendered with a minimap on the right bottom. Wheel scrolling will zoom into the tree at the position of the mousee cursor. The zoom view can be moved either by dragging the tree or the red squared view in the minimap. Nodes in the tree can be closed and opened with a click. Right clicking a node will open a context menu with options to copy the text of the node and marking the node with a color.
+						Regular nodes have black labels and string literals are red.
+					</p>
+					<h3>Help</h3>
+					<p>
+						This help page.
+					</p>
+					<h3>Use Cases</h3>
+					<p>
+						<ul>
+								<li>Extract information from source code (e.g. find vulnerabilities/errors)</li>
+								<li>Source code transformation/translation</li>
+								<li>Pretty printing</li>
+						</ul>
+					</p>
+					<h3>Usage</h3>
+					<p>
+						<ol>
+								<li>Add a source language file into the top left editor and a JavaScript translation script into the bottom editor.</li>
+								<li>Press the Run button to execute the translation script and print into the top right result editor.</li>
+								<li>After translation, the AST is visible at the tree tab. Either press the Show All button to show all nodes or select lines in the source editor and press the Select button. Mark or copy item names with the context menu to use in the translation script editor. Scroll to zoom, drag the tree or use the minimap to drag the visible view into position.</li>
+						</ol>
+					</p>
+					<h3>CSS selectors</h3>
+					<p>
+						Use CSS selectors on a node to find other nodes.
+						The AST root is stored in the current variable for the translation script. Each AST node has a query, queryAll, matches, closest, text, name and forEach method.
+						Additionally to common css selectors:<br>
+							There is a :nth-child-of pseudo class that only counts children of the same type.
+					</p>
+					<h3>Open Source Usage</h3>
+					<table>
+						<tr><th>Source</th><th>License</th></tr>
+						<tr><td>https://github.com/ajaxorg/ace</td><td>3-Clause BSD License</td></tr>
+						<tr><td>https://github.com/mturco/context-menu</td><td>MIT</td></tr>
+						<tr><td>https://github.com/danburzo/selery</td><td>MIT</td></tr>
+						<tr><td>https://github.com/fomantic/Fomantic-UI </td><td>MIT</td></tr>
+						<tr><td>https://github.com/d3/d3</td><td>ISC license</td></tr>
+						<tr><td>https://observablehq.com/@d3/collapsible-tree</td><td>ISC license</td></tr>
+						<tr><td>https://github.com/jquery/jquery    </td><td>MIT</td></tr>
+						<tr><td>https://github.com/RickStrahl/jquery-resizable  </td><td>MIT</td></tr>
+						<tr><td>https://github.com/antlr/grammars-v4</td><td></td></tr>
+						<tr><td>https://github.com/antlr/antlr4    </td><td>3-Clause BSD License</td></tr>
+					</table>
+				</div>
+			</div>
+			<div class="ui bottom attached tabular menu">
+				<a class="item active" data-tab="edit">Edit</a>
+				<a class="item" data-tab="tree">Tree</a>
+				<a class="item" data-tab="help">Help</a>
+			</div>
+		</div>
+	</body>
+</html>
