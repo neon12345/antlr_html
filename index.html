@@ -369,7 +369,7 @@
 						send(function(res, err) {
 							if(!err) {
 								res.text().then(function(r) {
-									if(!res.headers.has('Error')) {
+									if(!res.headers.has('Error') && !(res.headers.get('Content-Type') || '').includes('plain')) {
 										ast_data = r;
 										ast_data += '\n';
 										ast_data += '_InitNode();';
