@@ -255,6 +255,7 @@
 				lang_sel.dropdown({   
 					onChange: function(value, text, $selectedItem) {
 						code_changed = true;
+						code_session.setMode('ace/mode/' + langs[value]);
 					}
 				});
 				
