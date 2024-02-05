@@ -801,9 +801,23 @@ commit: 456f6ba02c676ff19d2840ed00982bb52b9a8f52 with changes
             }
             return curr;
         };
+        
+        const children = (el, sel) => {
+            const node = typeof sel === 'string' || Array.isArray(sel) ? parse(sel) : sel;         
+            let result = [];
+            let it = adapter.visit(
+                el,
+                n => n !== el && matches(n, node),
+                n => { result.push(n); return false },
+                1
+            );
+            return result;
+        }
 
         const matches = (el, sel) => {
-            const node = typeof sel === 'string' || Array.isArray(sel) ? parse(sel) : sel;
+            const node = typeof sel === 'string' || Array.isArray(sel) ? parse(sel) : sel;            
+            if(node == null)
+                return false;
             if (Matchers[node.type]) {
                 return Matchers[node.type](el, node);
             }
@@ -880,7 +894,7 @@ commit: 456f6ba02c676ff19d2840ed00982bb52b9a8f52 with changes
             if (!node.matcher) {
                 return adapter.hasAttribute(el, node.identifier);
             }
-            let haystack = adapter.hasAttribute(el, node.identifier);
+            let haystack = adapter.getAttribute(el, node.identifier);
             if (!haystack) {
                 return false;
             }
@@ -1246,6 +1260,7 @@ commit: 456f6ba02c676ff19d2840ed00982bb52b9a8f52 with changes
             querySelector:querySelector,
             querySelectorAll:querySelectorAll,
             closest:closest,
+            children:children,
             matches:matches
         }
     }
@@ -1326,8 +1341,8 @@ cssqry.ast = cssqry.init({
         el.parent.visit({
             onComment(val, idx) { },
             onNode(node, pos) { return pos == 0 ? onNext(node) : false; },
-            onLiteral(val) { return onNext(val); },
-            onVal(val) { return onNext(val); }
+            onLiteral(val) { return false; },
+            onVal(val) { return false; }
         }, 1);
         return prev;
     },
@@ -1351,8 +1366,8 @@ cssqry.ast = cssqry.init({
         el.parent.visit({
             onComment(val, idx) { },
             onNode(node, pos) { return pos == 0 ? onNext(node) : false; },
-            onLiteral(val) { return onNext(val); },
-            onVal(val) { return onNext(val); }
+            onLiteral(val) { return false; },
+            onVal(val) { return false; }
         }, 1);
         return next;
     },
@@ -1371,15 +1386,17 @@ cssqry.ast = cssqry.init({
         el.parent.visit({
             onComment(val, idx) { },
             onNode(node, pos) { return pos == 0 ? onNext(node) : false; },
-            onLiteral(val) { return onNext(val); },
-            onVal(val) { return onNext(val); }
+            onLiteral(val) { return false; },
+            onVal(val) { return false; }
         }, 1);
         return index;
     },
     hasAttribute(el, attr) {
-        return false;
+        return el.hasOwnProperty(attr);
     },
     getAttribute(el, attr) {
+        if(el.hasOwnProperty(attr))
+            return el[attr];
         return null;
     },
     hasID(el, id) {
@@ -1416,8 +1433,8 @@ cssqry.ast = cssqry.init({
             el.visit({
                 onComment(val, idx) { },
                 onNode(node, pos) { return pos == 0 && filter(node) ? onNext(node) : false; },
-                onLiteral(val) { return filter(val) ? onNext(val) : false; },
-                onVal(val) { return filter(val) ? onNext(val) : false; }
+                onLiteral(val) { return false; },
+                onVal(val) { return false; }
             });
         } else {
             if(filter(el))
@@ -1432,6 +1449,7 @@ function _InitNode() {
     Node.prototype.closest = function(q) { return cssqry.ast.closest(this, q); };
     Node.prototype.name = function(q) { return this.constructor.name; };
     Node.prototype.matches = function(q) { return cssqry.ast.matches(this, q); };
+    Node.prototype.children = function(q) { return cssqry.ast.children(this, q); };
     Node.prototype.text = function() {
             var res = '';
             var first = true;
