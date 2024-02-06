@@ -1392,11 +1392,11 @@ cssqry.ast = cssqry.init({
         return index;
     },
     hasAttribute(el, attr) {
-        return el.hasOwnProperty(attr);
+        return el.hasOwnProperty(attr) || attr in Node.prototype;
     },
     getAttribute(el, attr) {
-        if(el.hasOwnProperty(attr))
-            return el[attr];
+        if(el.hasOwnProperty(attr) || attr in Node.prototype)
+            return '' + el[attr];
         return null;
     },
     hasID(el, id) {
@@ -1449,7 +1449,12 @@ function _InitNode() {
     Node.prototype.closest = function(q) { return cssqry.ast.closest(this, q); };
     Node.prototype.name = function(q) { return this.constructor.name; };
     Node.prototype.matches = function(q) { return cssqry.ast.matches(this, q); };
-    Node.prototype.children = function(q) { return cssqry.ast.children(this, q); };
+    Node.prototype.children = function(q) { return cssqry.ast.children(this, q); };    
+    Object.defineProperty(Node.prototype, "num_comments", {
+        get: function num_comments() {
+            return Object.keys(this.comments).length;
+        }
+    });
     Node.prototype.text = function() {
             var res = '';
             var first = true;
