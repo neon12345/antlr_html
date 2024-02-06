@@ -1332,7 +1332,7 @@ cssqry.ast = cssqry.init({
             if(n === el)
                 return true;
             if(!first) {
-                prev = el;
+                prev = n;
             } else {
                 first = false;
             }
