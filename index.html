@@ -953,13 +953,13 @@
 						The split view has three editors with the input source file at the top left, the result at the top right and the translation script at the bottom.
 						Strg+S is equal to a button press.
 						Drag the joint border to resize the editors.
-						To select the result language, add a comment to the translation script: /* lang: python */
+						To select the resulting language, add a comment to the translation script: /* lang: python */
 						Select lines in the input source file to filter the AST.
 					<p>
 					</p>
 					<h3>Tree</h3>
 					<p>
-						The toolbar at the top has filter buttons to either show all nodes or only selected nodes from the editor. The selected lines are shown in the label next to the Select button. The translation script must run once to render the tree. The center contains the AST rendered with a minimap on the right bottom. Wheel scrolling will zoom into the tree at the position of the mousee cursor. The zoom view can be moved either by dragging the tree or the red squared view in the minimap. Nodes in the tree can be closed and opened with a click. Right clicking a node will open a context menu with options to copy the text of the node and marking the node with a color.
+						The toolbar at the top has filter buttons to either show all nodes or only the selected nodes from the editor. The selected lines are shown with the label next to the Select button. The translation script must run once to render the tree. The center contains the AST rendered with a minimap on the right bottom. Wheel scrolling will zoom into the tree at the position of the mouse cursor. The zoom view can be moved either by dragging the tree or the red squared view in the minimap. Nodes in the tree can be closed and opened with a click. Right-clicking a node will open a context menu with options to copy the text of the node and mark the node with a color.
 						Regular nodes have black labels and string literals are red.
 					</p>
 					<h3>Help</h3>
@@ -985,9 +985,9 @@
 					<h3>CSS selectors</h3>
 					<p>
 						Use CSS selectors on a node to find other nodes.
-						The AST root is stored in the current variable for the translation script. Each AST node has a query, queryAll, matches, closest, text, name and forEach method.
-						Additionally to common css selectors:<br>
-							There is a :nth-child-of pseudo class that only counts children of the same type.
+						The AST root is stored in the "current" variable for the translation script. Each AST node has a "query", "queryAll", "matches", "closest", "text", "name" and "forEach" method.
+						Additionally to common CSS selectors:
+						There is a ":nth-child-of" pseudo class that only counts children of the same type.
 					</p>
 					<h3>Open Source Usage</h3>
 					<table>
