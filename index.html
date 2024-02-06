@@ -293,20 +293,26 @@
 					function after(res, err) {
 						onOk(res, err);
 					}
-					fetch('https://antlr.syncsocial.de/cgi-bin/cat.py?' + new URLSearchParams({
-						cmd: 1,
-						lang: lang_sel.dropdown('get value'),
-					}),
-					{
-						headers: {
-							'Accept': 'html/text',
-							'Content-Type': 'html/text'
-						},
-						method: 'POST',
-						body: code_editor.getValue()
-					})
-					.then(function(res){ after(res, false) })
-					.catch(function(res){ after(res, true) });
+					let body = code_editor.getValue();
+					let size = new Blob([body]).size;
+					if(size < 200) {
+						fetch('https://antlr.syncsocial.de/cgi-bin/cat.py?' + new URLSearchParams({
+							cmd: 1,
+							lang: lang_sel.dropdown('get value'),
+						}),
+						{
+							headers: {
+								'Accept': 'html/text',
+								'Content-Type': 'html/text'
+							},
+							method: 'POST',
+							body: body
+						})
+						.then(function(res){ after(res, false) })
+						.catch(function(res){ after(res, true) });
+					} else {
+						alert('Source input size is limited to 200 bytes. Current size is ' + size + ' bytes.');
+					}
 				}
 				
 				function onRun() {
