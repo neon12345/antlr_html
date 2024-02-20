@@ -1487,5 +1487,44 @@ function _InitNode() {
                 onVal(val) { return f(val, 2); }
             }, depth);
     };
-    
+    Node.prototype.clone = function(parent) {
+        function _clone(item, parent) {
+            if(item === null || typeof item !== 'object') {
+                return item; 
+            }
+            if(item instanceof Node) {
+                return item.clone(parent);
+            }
+            if(Array.isArray(item)) {
+                let arr = [];
+                item.forEach((it) => {
+                    arr.push(_clone(it, parent));
+                });
+                return arr;
+            }
+            let obj = {};
+            for(const key in item) {
+                if(item.hasOwnProperty(key)) {
+                    obj[key] = _clone(item[key], parent);
+                }
+            }
+            return obj;
+        }
+        
+        const prot = Object.getPrototypeOf(this);
+        const node = Object.create(prot);
+
+        for(const key in this) {
+            if(this.hasOwnProperty(key)) {
+                if(key == 'parent')
+                {
+                    node[key]  = parent || this.parent;
+                    continue;
+                }
+                node[key] = _clone(this[key], node);
+            }
+        }
+
+        return node;
+    };
 }
