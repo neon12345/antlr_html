@@ -296,7 +296,7 @@
 					let body = code_editor.getValue();
 					let size = new Blob([body]).size;
 					if(size < 200) {
-						fetch('https://antlr.syncsocial.de/cgi-bin/cat.py?' + new URLSearchParams({
+						fetch('https://antlr.syncsocial.org/cgi-bin/cat.py?' + new URLSearchParams({
 							cmd: 1,
 							lang: lang_sel.dropdown('get value'),
 						}),
